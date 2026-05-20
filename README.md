@@ -4,6 +4,8 @@ Chrome extension that lets you hide Airbnb listings from search results. Hidden 
 
 Tired of scrolling past the same listings you've already rejected? Just hide them.
 
+![Example](example.png)
+
 ## Features
 
 - **Hide/Show button** on every listing card (appears on hover)

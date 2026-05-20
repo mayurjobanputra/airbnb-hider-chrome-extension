@@ -6,6 +6,10 @@ Tired of scrolling past the same listings you've already rejected? Just hide the
 
 ![Example](example.png)
 
+## Why I Made This
+
+Airbnb is unlikely to offer a "hide" option any time soon — they probably don't want to draw attention to bad or scam listings. Overall Airbnb is pretty good for listing quality, but every once in a while you find a group of listings all together from several hosts ("investors") that create fake listings and share the actual condos as a group. Each puts up multiple listings. They're easy to spot once you start seeing repeating photos and descriptions that all say the same thing — like charging a deposit or some specific rules. Being able to hide them cleans up your search results fast.
+
 ## Features
 
 - **Hide/Show button** on every listing card (appears on hover)

@@ -1,0 +1,5 @@
+# Reference files (not part of the extension)
+search-results-html.html
+page-saved/
+.vscode/
+.DS_Store

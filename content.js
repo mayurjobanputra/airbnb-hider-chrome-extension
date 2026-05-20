@@ -1,0 +1,277 @@
+// Airbnb Listing Hider - Content Script
+// Adds hide/show buttons to Airbnb search result cards.
+// Uses listing IDs from URLs for reliable identification across sessions.
+
+(function () {
+  "use strict";
+
+  const STORAGE_KEY = "alh_hidden_listings";
+  const POLL_INTERVAL = 1500;
+  const MARKER_ATTR = "data-alh-processed";
+
+  let hiddenListings = new Set();
+  let showAll = false;
+  let counterEl = null;
+
+  // --- Storage ---
+
+  function loadHiddenListings() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get({ [STORAGE_KEY]: [] }, (result) => {
+        hiddenListings = new Set(result[STORAGE_KEY]);
+        resolve();
+      });
+    });
+  }
+
+  function saveHiddenListings() {
+    chrome.storage.local.set({
+      [STORAGE_KEY]: Array.from(hiddenListings),
+    });
+  }
+
+  // --- Listing ID extraction ---
+
+  function getListingId(cardEl) {
+    // Primary: extract from the link's target attribute (target="listing_12345")
+    const link = cardEl.querySelector('a[target^="listing_"]');
+    if (link) {
+      const match = link.getAttribute("target").match(/listing_(\d+)/);
+      if (match) return match[1];
+    }
+
+    // Fallback: extract from href (/rooms/12345?...)
+    const anyLink = cardEl.querySelector('a[href*="/rooms/"]');
+    if (anyLink) {
+      const match = anyLink.getAttribute("href").match(/\/rooms\/(\d+)/);
+      if (match) return match[1];
+    }
+
+    // Fallback: extract from aria-labelledby (title_12345)
+    const labelledLink = cardEl.querySelector("a[aria-labelledby]");
+    if (labelledLink) {
+      const match = labelledLink
+        .getAttribute("aria-labelledby")
+        .match(/title_(\d+)/);
+      if (match) return match[1];
+    }
+
+    return null;
+  }
+
+  function getListingName(cardEl) {
+    const nameEl = cardEl.querySelector('[data-testid="listing-card-name"]');
+    if (nameEl) return nameEl.textContent.trim();
+
+    const titleEl = cardEl.querySelector('[data-testid="listing-card-title"]');
+    if (titleEl) return titleEl.textContent.trim();
+
+    return "Unknown listing";
+  }
+
+  // --- UI ---
+
+  function createHideButton(cardEl, listingId) {
+    const btn = document.createElement("button");
+    btn.className = "alh-hide-btn";
+    btn.title = "Hide this listing";
+    btn.setAttribute("aria-label", "Hide this listing");
+
+    // X icon
+    btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleListing(cardEl, listingId);
+    });
+
+    return btn;
+  }
+
+  function toggleListing(cardEl, listingId) {
+    if (hiddenListings.has(listingId)) {
+      // Unhide
+      hiddenListings.delete(listingId);
+      cardEl.classList.remove("alh-hidden", "alh-collapsed");
+      const btn = cardEl.querySelector(".alh-hide-btn");
+      if (btn) {
+        btn.title = "Hide this listing";
+        btn.setAttribute("aria-label", "Hide this listing");
+        btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+      }
+    } else {
+      // Hide
+      hiddenListings.add(listingId);
+      cardEl.classList.add("alh-hidden");
+      const btn = cardEl.querySelector(".alh-hide-btn");
+      if (btn) {
+        btn.title = "Show this listing";
+        btn.setAttribute("aria-label", "Show this listing");
+        btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+      }
+    }
+
+    saveHiddenListings();
+    updateCounter();
+  }
+
+  function applyHiddenState(cardEl, listingId) {
+    if (hiddenListings.has(listingId)) {
+      cardEl.classList.add("alh-hidden");
+      const btn = cardEl.querySelector(".alh-hide-btn");
+      if (btn) {
+        btn.title = "Show this listing";
+        btn.setAttribute("aria-label", "Show this listing");
+        btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+      }
+    }
+  }
+
+  // --- Counter badge ---
+
+  function createCounter() {
+    counterEl = document.createElement("div");
+    counterEl.className = "alh-counter alh-counter-hidden";
+    counterEl.innerHTML = `
+      <svg class="alh-counter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="alh-counter-text"></span>
+    `;
+
+    counterEl.addEventListener("click", () => {
+      showAll = !showAll;
+      document.body.classList.toggle("alh-show-all", showAll);
+      updateCounter();
+    });
+
+    document.body.appendChild(counterEl);
+  }
+
+  function updateCounter() {
+    if (!counterEl) return;
+
+    const count = hiddenListings.size;
+    const textEl = counterEl.querySelector(".alh-counter-text");
+
+    if (count === 0) {
+      counterEl.classList.add("alh-counter-hidden");
+    } else {
+      counterEl.classList.remove("alh-counter-hidden");
+      textEl.textContent = showAll
+        ? `${count} hidden (showing all)`
+        : `${count} hidden`;
+    }
+  }
+
+  // --- Main processing ---
+
+  function processCards() {
+    const cards = document.querySelectorAll(
+      '[data-testid="card-container"]:not([' + MARKER_ATTR + "])"
+    );
+
+    cards.forEach((card) => {
+      card.setAttribute(MARKER_ATTR, "true");
+
+      const listingId = getListingId(card);
+      if (!listingId) return;
+
+      // Store the ID on the element for easy access
+      card.dataset.alhListingId = listingId;
+
+      // Make the card position relative so the button positions correctly
+      const computedPos = window.getComputedStyle(card).position;
+      if (computedPos === "static") {
+        card.style.position = "relative";
+      }
+
+      // Add hide button
+      const btn = createHideButton(card, listingId);
+      card.appendChild(btn);
+
+      // Apply hidden state if previously hidden
+      applyHiddenState(card, listingId);
+    });
+
+    updateCounter();
+  }
+
+  // --- Init ---
+
+  async function init() {
+    await loadHiddenListings();
+    createCounter();
+    updateCounter();
+    processCards();
+
+    // Poll for new cards (Airbnb loads dynamically on scroll, page change, map move)
+    setInterval(processCards, POLL_INTERVAL);
+
+    // Also observe DOM mutations for faster response
+    const observer = new MutationObserver((mutations) => {
+      let hasNewCards = false;
+      for (const mutation of mutations) {
+        if (mutation.addedNodes.length > 0) {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === 1) {
+              if (
+                node.matches?.('[data-testid="card-container"]') ||
+                node.querySelector?.('[data-testid="card-container"]')
+              ) {
+                hasNewCards = true;
+                break;
+              }
+            }
+          }
+        }
+        if (hasNewCards) break;
+      }
+      if (hasNewCards) {
+        // Small delay to let Airbnb finish rendering
+        setTimeout(processCards, 100);
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  // Wait for DOM ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+
+  // Listen for storage changes (sync across tabs)
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes[STORAGE_KEY]) {
+      hiddenListings = new Set(changes[STORAGE_KEY].newValue || []);
+      // Re-apply states to all processed cards
+      document
+        .querySelectorAll("[" + MARKER_ATTR + "]")
+        .forEach((card) => {
+          const id = card.dataset.alhListingId;
+          if (!id) return;
+          if (hiddenListings.has(id)) {
+            card.classList.add("alh-hidden");
+          } else {
+            card.classList.remove("alh-hidden", "alh-collapsed");
+          }
+        });
+      updateCounter();
+    }
+  });
+})();

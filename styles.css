@@ -1,0 +1,116 @@
+/* Airbnb Listing Hider - Injected Styles */
+
+.alh-hide-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.92);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+  transition: transform 0.15s ease, background 0.15s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Show button on card hover */
+[data-testid="card-container"]:hover .alh-hide-btn,
+[data-testid="card-container"]:focus-within .alh-hide-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.alh-hide-btn:hover {
+  transform: scale(1.1);
+  background: rgba(255, 255, 255, 1);
+}
+
+.alh-hide-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: #222;
+  stroke-width: 2;
+  fill: none;
+}
+
+/* Hidden listing state */
+[data-testid="card-container"].alh-hidden {
+  opacity: 0.15;
+  transform: scale(0.97);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-testid="card-container"].alh-hidden::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.6);
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* Show button always visible on hidden cards */
+[data-testid="card-container"].alh-hidden .alh-hide-btn {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 100;
+}
+
+/* Fully collapsed mode */
+[data-testid="card-container"].alh-collapsed {
+  display: none !important;
+}
+
+/* Show all override */
+.alh-show-all [data-testid="card-container"].alh-hidden {
+  opacity: 0.4;
+  transform: none;
+}
+
+.alh-show-all [data-testid="card-container"].alh-collapsed {
+  display: block !important;
+  opacity: 0.4;
+}
+
+/* Floating counter badge */
+.alh-counter {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 10000;
+  background: #222;
+  color: #fff;
+  border-radius: 24px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s ease;
+}
+
+.alh-counter:hover {
+  background: #444;
+}
+
+.alh-counter-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.alh-counter-hidden {
+  display: none;
+}

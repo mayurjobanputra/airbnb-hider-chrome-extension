@@ -210,29 +210,12 @@
 
   function processMapMarkers() {
     const titleSet = getHiddenTitleSet();
-    if (titleSet.size === 0) {
-      // Unhide all markers
-      document
-        .querySelectorAll('[data-testid="map/markers/BasePillMarker"]')
-        .forEach((marker) => {
-          const container = marker.closest("gmp-advanced-marker") ||
-            marker.closest(".GoogleAdvancedMarker-container");
-          if (container) {
-            container.style.display = "";
-            container.style.opacity = "";
-          }
-        });
-      return;
-    }
 
     const markers = document.querySelectorAll(
       '[data-testid="map/markers/BasePillMarker"]'
     );
 
     markers.forEach((marker) => {
-      // The marker's accessible text contains "Title, $Price CAD"
-      // e.g. "Apartment in Khet Ratchathewi, $1,053 CAD"
-      // We match exactly against stored title+price keys
       const markerText = marker.textContent.trim();
       const container = marker.closest("gmp-advanced-marker") ||
         marker.closest(".GoogleAdvancedMarker-container");
@@ -248,6 +231,7 @@
 
       if (isHidden && !showAll) {
         container.style.display = "none";
+        container.style.opacity = "";
       } else if (isHidden && showAll) {
         container.style.display = "";
         container.style.opacity = "0.3";

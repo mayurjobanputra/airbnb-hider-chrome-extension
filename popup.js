@@ -10,7 +10,7 @@ function render(hiddenIds) {
 
   if (count === 0) {
     statsEl.innerHTML = "No listings hidden yet.";
-    actionsEl.innerHTML = `<p class="empty">Browse Airbnb search results and click the ✕ button on any listing card to hide it.</p>`;
+    actionsEl.innerHTML = `<p class="empty">Browse Airbnb search results and click the Hide button on any listing card.</p>`;
     return;
   }
 
@@ -18,61 +18,13 @@ function render(hiddenIds) {
 
   actionsEl.innerHTML = "";
 
-  const clearBtn = document.createElement("button");
-  clearBtn.className = "danger";
-  clearBtn.textContent = `Clear all ${count} hidden listing${count !== 1 ? "s" : ""}`;
-  clearBtn.addEventListener("click", () => {
-    if (confirm(`Unhide all ${count} listings? This cannot be undone.`)) {
-      chrome.storage.local.set({ [STORAGE_KEY]: [] }, () => {
-        render([]);
-      });
-    }
-  });
-  actionsEl.appendChild(clearBtn);
-
-  const exportBtn = document.createElement("button");
-  exportBtn.textContent = "Export hidden list";
-  exportBtn.addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(hiddenIds, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "airbnb-hidden-listings.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-  actionsEl.appendChild(exportBtn);
-
-  const importBtn = document.createElement("button");
-  importBtn.textContent = "Import hidden list";
-  importBtn.addEventListener("click", () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json";
-    input.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const imported = JSON.parse(ev.target.result);
-          if (!Array.isArray(imported)) throw new Error("Invalid format");
-          // Merge with existing
-          const merged = [...new Set([...hiddenIds, ...imported])];
-          chrome.storage.local.set({ [STORAGE_KEY]: merged }, () => {
-            render(merged);
-          });
-        } catch (err) {
-          alert("Invalid file format. Expected a JSON array of listing IDs.");
-        }
-      };
-      reader.readAsText(file);
-    });
-    input.click();
-  });
-  actionsEl.appendChild(importBtn);
+  // Manage page link
+  const manageLink = document.createElement("a");
+  manageLink.className = "btn";
+  manageLink.textContent = `View & manage hidden listings`;
+  manageLink.href = chrome.runtime.getURL("manage.html");
+  manageLink.target = "_blank";
+  actionsEl.appendChild(manageLink);
 }
 
 // Load and render

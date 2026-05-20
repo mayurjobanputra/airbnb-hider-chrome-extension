@@ -1,15 +1,20 @@
 // Airbnb Listing Hider - Content Script
 // Adds hide/show buttons to Airbnb search result cards.
 // Uses listing IDs from URLs for reliable identification across sessions.
+// Also hides corresponding map markers by matching title text.
 
 (function () {
   "use strict";
 
   const STORAGE_KEY = "alh_hidden_listings";
+  const STORAGE_TITLES_KEY = "alh_hidden_titles";
   const POLL_INTERVAL = 1500;
   const MARKER_ATTR = "data-alh-processed";
+  const MAP_MARKER_ATTR = "data-alh-map-processed";
 
   let hiddenListings = new Set();
+  // Maps listing ID -> title (from card-title) for map marker matching
+  let hiddenTitles = new Map();
   let showAll = false;
   let counterEl = null;
 
@@ -17,16 +22,21 @@
 
   function loadHiddenListings() {
     return new Promise((resolve) => {
-      chrome.storage.local.get({ [STORAGE_KEY]: [] }, (result) => {
-        hiddenListings = new Set(result[STORAGE_KEY]);
-        resolve();
-      });
+      chrome.storage.local.get(
+        { [STORAGE_KEY]: [], [STORAGE_TITLES_KEY]: {} },
+        (result) => {
+          hiddenListings = new Set(result[STORAGE_KEY]);
+          hiddenTitles = new Map(Object.entries(result[STORAGE_TITLES_KEY]));
+          resolve();
+        }
+      );
     });
   }
 
   function saveHiddenListings() {
     chrome.storage.local.set({
       [STORAGE_KEY]: Array.from(hiddenListings),
+      [STORAGE_TITLES_KEY]: Object.fromEntries(hiddenTitles),
     });
   }
 
@@ -59,14 +69,11 @@
     return null;
   }
 
-  function getListingName(cardEl) {
-    const nameEl = cardEl.querySelector('[data-testid="listing-card-name"]');
-    if (nameEl) return nameEl.textContent.trim();
-
+  function getListingTitle(cardEl) {
+    // Get the card title (e.g., "Apartment in Khet Ratchathewi") used for map marker matching
     const titleEl = cardEl.querySelector('[data-testid="listing-card-title"]');
     if (titleEl) return titleEl.textContent.trim();
-
-    return "Unknown listing";
+    return null;
   }
 
   // --- UI ---
@@ -77,10 +84,7 @@
     btn.title = "Hide this listing";
     btn.setAttribute("aria-label", "Hide this listing");
 
-    // X icon
-    btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
+    btn.textContent = "Hide";
 
     btn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -95,32 +99,31 @@
     if (hiddenListings.has(listingId)) {
       // Unhide
       hiddenListings.delete(listingId);
+      hiddenTitles.delete(listingId);
       cardEl.classList.remove("alh-hidden", "alh-collapsed");
       const btn = cardEl.querySelector(".alh-hide-btn");
       if (btn) {
         btn.title = "Hide this listing";
         btn.setAttribute("aria-label", "Hide this listing");
-        btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`;
+        btn.textContent = "Hide";
       }
     } else {
       // Hide
       hiddenListings.add(listingId);
+      const title = getListingTitle(cardEl);
+      if (title) hiddenTitles.set(listingId, title);
       cardEl.classList.add("alh-hidden");
       const btn = cardEl.querySelector(".alh-hide-btn");
       if (btn) {
         btn.title = "Show this listing";
         btn.setAttribute("aria-label", "Show this listing");
-        btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`;
+        btn.textContent = "Show";
       }
     }
 
     saveHiddenListings();
     updateCounter();
+    processMapMarkers();
   }
 
   function applyHiddenState(cardEl, listingId) {
@@ -130,10 +133,7 @@
       if (btn) {
         btn.title = "Show this listing";
         btn.setAttribute("aria-label", "Show this listing");
-        btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`;
+        btn.textContent = "Show";
       }
     }
   }

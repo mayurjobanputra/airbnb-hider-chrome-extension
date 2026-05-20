@@ -50,6 +50,15 @@ popup.js        — Popup logic (stats, clear, export/import)
 icons/          — Extension icons
 ```
 
+## Where Data is Stored
+
+Hidden listing IDs and title/price mappings are stored in `chrome.storage.local`, which lives in your Chrome profile directory. This means:
+
+- **Persists** across page reloads, browser restarts, and extension updates
+- **Lost** if you uninstall the extension (use Export to back up first)
+- **Syncs** between tabs in the same browser
+- **Does not sync** across devices or browsers
+
 ## Updating
 
 When you pull new changes from this repo:

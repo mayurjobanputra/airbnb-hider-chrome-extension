@@ -10,7 +10,6 @@
   const STORAGE_TITLES_KEY = "alh_hidden_titles";
   const POLL_INTERVAL = 1500;
   const MARKER_ATTR = "data-alh-processed";
-  const MAP_MARKER_ATTR = "data-alh-map-processed";
 
   let hiddenListings = new Set();
   // Maps listing ID -> title (from card-title) for map marker matching
@@ -189,7 +188,8 @@
       document
         .querySelectorAll('[data-testid="map/markers/BasePillMarker"]')
         .forEach((marker) => {
-          const container = marker.closest(".GoogleAdvancedMarker-container");
+          const container = marker.closest("gmp-advanced-marker") ||
+            marker.closest(".GoogleAdvancedMarker-container");
           if (container) {
             container.style.display = "";
             container.style.opacity = "";
@@ -207,7 +207,8 @@
       // "Apartment in Khet Ratchathewi, $1,053 CAD"
       // We check if the marker text starts with any hidden title
       const markerText = marker.textContent.trim();
-      const container = marker.closest(".GoogleAdvancedMarker-container");
+      const container = marker.closest("gmp-advanced-marker") ||
+        marker.closest(".GoogleAdvancedMarker-container");
       if (!container) return;
 
       let isHidden = false;
@@ -298,6 +299,8 @@
               if (
                 node.matches?.('[data-testid="map/markers/BasePillMarker"]') ||
                 node.querySelector?.('[data-testid="map/markers/BasePillMarker"]') ||
+                node.matches?.("gmp-advanced-marker") ||
+                node.querySelector?.("gmp-advanced-marker") ||
                 node.classList?.contains("GoogleAdvancedMarker-container")
               ) {
                 hasMapChanges = true;

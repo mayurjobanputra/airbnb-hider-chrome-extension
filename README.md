@@ -50,9 +50,22 @@ popup.js        — Popup logic (stats, clear, export/import)
 icons/          — Extension icons
 ```
 
+## Updating
+
+When you pull new changes from this repo:
+
+1. Go to `chrome://extensions/`
+2. Find **Airbnb Listing Hider**
+3. Click the **reload** icon (↻) on the extension card
+4. Refresh any open Airbnb tabs
+
+Your hidden listings are preserved across updates — they're stored in Chrome's local storage, not in the extension files.
+
+**Note:** If you fully uninstall and reinstall the extension, your hidden list will be lost. Use **Export** in the popup to back it up first.
+
 ## Limitations
 
-- Map marker hiding relies on matching the listing's title text. If two listings share the exact same title and one is hidden, both map pins will be hidden. In practice this is rare since prices differ.
+- Map marker hiding matches by title + price text. If two listings share the exact same title and price, hiding one will hide both pins. In practice this is very rare.
 - Only works on `www.airbnb.com` and `www.airbnb.ca`. To add more domains, edit the `matches` array in `manifest.json`.
 
 ## Credits

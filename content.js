@@ -75,6 +75,33 @@
     return null;
   }
 
+  function getListingMapKey(cardEl) {
+    // Build the exact string that appears in the map marker: "Title, $Price"
+    // The map pin shows: "Apartment in Khet Ratchathewi, $1,053 CAD"
+    const title = getListingTitle(cardEl);
+    if (!title) return null;
+
+    // Find the visible price — it's the discounted/current price shown on the pin
+    // Look for the price button's visible text (class u1opajno) or the aria-label
+    const priceBtn = cardEl.querySelector(".u1opajno");
+    if (priceBtn) {
+      const price = priceBtn.textContent.trim().replace(/\u00a0/g, "\u00a0");
+      return title + ", " + price;
+    }
+
+    // Fallback: try the price aria-label and extract the first price
+    const priceLabel = cardEl.querySelector('[aria-label*="monthly"]');
+    if (priceLabel) {
+      const label = priceLabel.getAttribute("aria-label");
+      // Extract the discounted price (first one like "$1,053 CAD")
+      const match = label.match(/^\$[\d,]+\s*\S+/);
+      if (match) return title + ", " + match[0];
+    }
+
+    // Last resort: just use title
+    return title;
+  }
+
   // --- UI ---
 
   function createHideButton(cardEl, listingId) {
@@ -109,8 +136,8 @@
     } else {
       // Hide
       hiddenListings.add(listingId);
-      const title = getListingTitle(cardEl);
-      if (title) hiddenTitles.set(listingId, title);
+      const mapKey = getListingMapKey(cardEl);
+      if (mapKey) hiddenTitles.set(listingId, mapKey);
       cardEl.classList.add("alh-hidden");
       const btn = cardEl.querySelector(".alh-hide-btn");
       if (btn) {
@@ -203,17 +230,17 @@
     );
 
     markers.forEach((marker) => {
-      // The marker's visible text contains the title + price, e.g.
-      // "Apartment in Khet Ratchathewi, $1,053 CAD"
-      // We check if the marker text starts with any hidden title
+      // The marker's accessible text contains "Title, $Price CAD"
+      // e.g. "Apartment in Khet Ratchathewi, $1,053 CAD"
+      // We match exactly against stored title+price keys
       const markerText = marker.textContent.trim();
       const container = marker.closest("gmp-advanced-marker") ||
         marker.closest(".GoogleAdvancedMarker-container");
       if (!container) return;
 
       let isHidden = false;
-      for (const title of titleSet) {
-        if (markerText.startsWith(title)) {
+      for (const mapKey of titleSet) {
+        if (markerText.startsWith(mapKey)) {
           isHidden = true;
           break;
         }
@@ -247,10 +274,10 @@
       // Store the ID on the element for easy access
       card.dataset.alhListingId = listingId;
 
-      // Track title for map marker matching
-      const title = getListingTitle(card);
-      if (title && hiddenListings.has(listingId)) {
-        hiddenTitles.set(listingId, title);
+      // Track title+price for map marker matching
+      const mapKey = getListingMapKey(card);
+      if (mapKey && hiddenListings.has(listingId)) {
+        hiddenTitles.set(listingId, mapKey);
       }
 
       // Make the card position relative so the button positions correctly

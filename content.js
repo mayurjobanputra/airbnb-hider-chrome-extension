@@ -176,6 +176,60 @@
     }
   }
 
+  // --- Map marker hiding ---
+
+  function getHiddenTitleSet() {
+    return new Set(hiddenTitles.values());
+  }
+
+  function processMapMarkers() {
+    const titleSet = getHiddenTitleSet();
+    if (titleSet.size === 0) {
+      // Unhide all markers
+      document
+        .querySelectorAll('[data-testid="map/markers/BasePillMarker"]')
+        .forEach((marker) => {
+          const container = marker.closest(".GoogleAdvancedMarker-container");
+          if (container) {
+            container.style.display = "";
+            container.style.opacity = "";
+          }
+        });
+      return;
+    }
+
+    const markers = document.querySelectorAll(
+      '[data-testid="map/markers/BasePillMarker"]'
+    );
+
+    markers.forEach((marker) => {
+      // The marker's visible text contains the title + price, e.g.
+      // "Apartment in Khet Ratchathewi, $1,053 CAD"
+      // We check if the marker text starts with any hidden title
+      const markerText = marker.textContent.trim();
+      const container = marker.closest(".GoogleAdvancedMarker-container");
+      if (!container) return;
+
+      let isHidden = false;
+      for (const title of titleSet) {
+        if (markerText.startsWith(title)) {
+          isHidden = true;
+          break;
+        }
+      }
+
+      if (isHidden && !showAll) {
+        container.style.display = "none";
+      } else if (isHidden && showAll) {
+        container.style.display = "";
+        container.style.opacity = "0.3";
+      } else {
+        container.style.display = "";
+        container.style.opacity = "";
+      }
+    });
+  }
+
   // --- Main processing ---
 
   function processCards() {
@@ -192,6 +246,12 @@
       // Store the ID on the element for easy access
       card.dataset.alhListingId = listingId;
 
+      // Track title for map marker matching
+      const title = getListingTitle(card);
+      if (title && hiddenListings.has(listingId)) {
+        hiddenTitles.set(listingId, title);
+      }
+
       // Make the card position relative so the button positions correctly
       const computedPos = window.getComputedStyle(card).position;
       if (computedPos === "static") {
@@ -207,6 +267,7 @@
     });
 
     updateCounter();
+    processMapMarkers();
   }
 
   // --- Init ---
@@ -223,6 +284,7 @@
     // Also observe DOM mutations for faster response
     const observer = new MutationObserver((mutations) => {
       let hasNewCards = false;
+      let hasMapChanges = false;
       for (const mutation of mutations) {
         if (mutation.addedNodes.length > 0) {
           for (const node of mutation.addedNodes) {
@@ -232,16 +294,24 @@
                 node.querySelector?.('[data-testid="card-container"]')
               ) {
                 hasNewCards = true;
-                break;
+              }
+              if (
+                node.matches?.('[data-testid="map/markers/BasePillMarker"]') ||
+                node.querySelector?.('[data-testid="map/markers/BasePillMarker"]') ||
+                node.classList?.contains("GoogleAdvancedMarker-container")
+              ) {
+                hasMapChanges = true;
               }
             }
           }
         }
-        if (hasNewCards) break;
+        if (hasNewCards && hasMapChanges) break;
       }
       if (hasNewCards) {
-        // Small delay to let Airbnb finish rendering
         setTimeout(processCards, 100);
+      }
+      if (hasMapChanges) {
+        setTimeout(processMapMarkers, 200);
       }
     });
 
@@ -257,8 +327,15 @@
 
   // Listen for storage changes (sync across tabs)
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes[STORAGE_KEY]) {
-      hiddenListings = new Set(changes[STORAGE_KEY].newValue || []);
+    if (area === "local" && (changes[STORAGE_KEY] || changes[STORAGE_TITLES_KEY])) {
+      if (changes[STORAGE_KEY]) {
+        hiddenListings = new Set(changes[STORAGE_KEY].newValue || []);
+      }
+      if (changes[STORAGE_TITLES_KEY]) {
+        hiddenTitles = new Map(
+          Object.entries(changes[STORAGE_TITLES_KEY].newValue || {})
+        );
+      }
       // Re-apply states to all processed cards
       document
         .querySelectorAll("[" + MARKER_ATTR + "]")
@@ -272,6 +349,7 @@
           }
         });
       updateCounter();
+      processMapMarkers();
     }
   });
 })();

@@ -1,52 +1,61 @@
 # Airbnb Listing Hider
 
-Chrome extension that lets you hide Airbnb listings from search results. Stop scrolling past the same places you've already rejected.
+Chrome extension that lets you hide Airbnb listings from search results. Hidden listings stay hidden across page changes, map moves, and browser sessions.
 
-## What it does
+Tired of scrolling past the same listings you've already rejected? Just hide them.
 
-- Adds a **Hide** button to each listing card on Airbnb search results
-- Hidden listings stay hidden across page changes, map moves, and browser sessions
-- Click **Show** on a hidden listing to bring it back
-- Floating badge shows how many listings you've hidden (click to toggle visibility of all hidden ones)
-- Works on airbnb.com and airbnb.ca
+## Features
+
+- **Hide/Show button** on every listing card (appears on hover)
+- **Map markers hidden too** — when you hide a listing, its pin disappears from the map
+- **Persistent** — hidden listings are saved locally and survive page reloads, navigation, and browser restarts
+- **Floating counter** — shows how many listings are hidden; click to toggle showing all
+- **Popup controls** — view count, clear all, export/import your hidden list
+- **Multi-tab sync** — hiding in one tab updates all open Airbnb tabs
+- **Works on** airbnb.com and airbnb.ca
 
 ## Install
 
-1. Download or clone this repo
+1. Clone or download this repo
 2. Go to `chrome://extensions/`
-3. Enable **Developer mode** (top right)
+3. Enable **Developer mode** (top-right toggle)
 4. Click **Load unpacked**
 5. Select this folder
 
-## How it works
+## How It Works
 
-The extension identifies listings by their numeric ID from the URL (e.g. `/rooms/36894063`). This is more reliable than matching by title, which can change with translations or A/B tests.
+- Listing cards are identified by their numeric listing ID (extracted from URLs), so hiding is reliable even if titles change
+- Map markers are matched by their title text (e.g., "Apartment in Khet Ratchathewi") since Google Maps markers don't expose listing IDs
+- A MutationObserver + polling combo ensures new cards and markers are caught as Airbnb dynamically loads content
 
-Hidden listing IDs are stored in `chrome.storage.local`, so they persist across sessions and sync between tabs.
+## Usage
 
-New listings are detected via MutationObserver + polling, so it works even when Airbnb dynamically loads content as you scroll or move the map.
+1. Search for listings on Airbnb
+2. Hover over any listing card — a **Hide** button appears in the top-left
+3. Click it to hide the listing (card fades out, map pin disappears)
+4. Click **Show** on a hidden listing to bring it back
+5. Click the floating badge (bottom-left) to temporarily reveal all hidden listings
+6. Use the extension popup to clear all, export, or import your hidden list
 
-## Popup
-
-Click the extension icon for:
-- Count of hidden listings
-- **Clear all** — unhide everything
-- **Export** — save your hidden list as JSON
-- **Import** — load a previously exported list (merges with existing)
-
-## Files
+## File Structure
 
 ```
-manifest.json   — Extension config (Manifest V3)
-content.js      — Main logic: finds cards, adds buttons, manages state
-styles.css      — Button and hidden-card styling
-popup.html/js   — Extension popup UI
+manifest.json   — Extension manifest (Manifest V3)
+content.js      — Main content script (injected on Airbnb pages)
+styles.css      — Styles for hide buttons, hidden state, counter badge
+popup.html      — Extension popup UI
+popup.js        — Popup logic (stats, clear, export/import)
 icons/          — Extension icons
 ```
 
+## Limitations
+
+- Map marker hiding relies on matching the listing's title text. If two listings share the exact same title and one is hidden, both map pins will be hidden. In practice this is rare since prices differ.
+- Only works on `www.airbnb.com` and `www.airbnb.ca`. To add more domains, edit the `matches` array in `manifest.json`.
+
 ## Credits
 
-Inspired by [jrieke/airbnb-sanity](https://github.com/jrieke/airbnb-sanity), which no longer works due to Airbnb DOM changes. This is a ground-up rewrite using current (2025) selectors.
+Inspired by [Airbnb Sanity](https://github.com/jrieke/airbnb-sanity) by Johannes Rieke. Rebuilt from scratch for the current (2025) Airbnb DOM structure using stable `data-testid` selectors.
 
 ## License
 
